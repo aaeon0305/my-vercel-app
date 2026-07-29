@@ -34,12 +34,12 @@ function createSeededRandom(seedInt: number) {
 }
 
 // ============================================================================
-// 2. GLOBAL STATE
+// 2. GLOBAL STATE (Expanded render distance: 5x5 chunk grid instead of 3x3)
 // ============================================================================
 const getNeighbors = (cx: number, cz: number) => {
   const neighbors = [];
-  for (let x = -1; x <= 1; x++) {
-    for (let z = -1; z <= 1; z++) {
+  for (let x = -2; x <= 2; x++) {
+    for (let z = -2; z <= 2; z++) {
       neighbors.push(`${cx + x},${cz + z}`);
     }
   }
@@ -64,11 +64,10 @@ if (typeof window !== 'undefined') {
   window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
 }
 
-// Rotation offsets driven by touch lookaround
 const touchLook = { yaw: 0, pitch: 0 };
 
 // ============================================================================
-// 3. BACKROOMS LEVEL 0 CHUNK GENERATOR
+// 3. BACKROOMS LEVEL 0 CHUNK GENERATOR (WITH SUBTLE WIREFRAME EDGES)
 // ============================================================================
 function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: string }) {
   const [cx, cz] = chunkID.split(',').map(Number);
@@ -211,6 +210,14 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
         </InstancedRigidBodies>
       )}
 
+      {/* Subtle Wireframe Overlay for wall borders */}
+      {fullWalls.length > 0 && (
+        <instancedMesh args={[undefined, undefined, fullWalls.length]}>
+          <boxGeometry args={[TILE_SIZE + 0.005, WALL_HEIGHT + 0.005, TILE_SIZE + 0.005]} />
+          <meshBasicMaterial color="#7a703d" wireframe={true} transparent={true} opacity={0.25} />
+        </instancedMesh>
+      )}
+
       {halfWalls.length > 0 && (
         <InstancedRigidBodies instances={halfWalls} type="fixed" colliders="cuboid">
           <instancedMesh ref={halfWallMeshRef} args={[undefined, undefined, halfWalls.length]}>
@@ -231,7 +238,7 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
 }
 
 // ============================================================================
-// 4. PLAYER CONTROLLER WITH TOUCH LOOK & MOVE INTEGRATION
+// 4. PLAYER CONTROLLER
 // ============================================================================
 function PlayerController() {
   const playerRef = useRef<any>(null);
@@ -290,7 +297,7 @@ function PlayerController() {
 }
 
 // ============================================================================
-// 5. MOBILE TOUCH CONTROLLER (JOYSTICK ADJUSTED UP)
+// 5. MOBILE TOUCH CONTROLLER (JOYSTICK MOVED UP TO 2/3rds HEIGHT)
 // ============================================================================
 function MobileControls() {
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
@@ -378,10 +385,10 @@ function MobileControls() {
       onTouchEnd={handleTouchEnd}
       className="absolute inset-0 z-20 touch-none pointer-events-auto"
     >
-      {/* Moved joystick further up and away from bottom screen edges */}
+      {/* Joystick positioned securely at ~2/3rds down the screen */}
       <div 
         ref={baseRef}
-        className="absolute bottom-14 left-10 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-none"
+        className="absolute bottom-1/3 left-12 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-none"
       >
         <div 
           className="w-12 h-12 bg-white/60 rounded-full shadow-md transition-transform duration-75"
@@ -415,7 +422,8 @@ export default function GamePrototype() {
 
       <MobileControls />
 
-      <Canvas>
+      {/* Increased camera far plane distance to prevent any horizon clipping */}
+      <Canvas camera={{ far: 1000 }}>
         <color attach="background" args={['#c7bd7b']} />
         
         <ambientLight intensity={1.1} color="#fff8c7" />
