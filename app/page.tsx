@@ -1,46 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Environment, Float } from '@react-three/drei';
+import * as THREE from 'three';
 
-export default function Home() {
-  const [count, setCount] = useState(0);
+// A spinning 3D object component
+function SpinningCube() {
+  const meshRef = useRef<THREE.Mesh>(null!);
+
+  // Rotate the cube on every frame render tick
+  useFrame((_, delta) => {
+    meshRef.current.rotation.x += delta * 0.4;
+    meshRef.current.rotation.y += delta * 0.6;
+  });
 
   return (
-    <main style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      background: '#0f172a',
-      color: '#f8fafc',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      <div style={{
-        background: '#1e293b',
-        padding: '2rem',
-        borderRadius: '12px',
-        border: '1px solid #334155',
-        textAlign: 'center'
-      }}>
-        <h2>Vercel + Framer Test</h2>
-        <p>Test state inside your Framer iframe embed.</p>
-        <p>Clicks: <strong>{count}</strong></p>
-        <button 
-          onClick={() => setCount(count + 1)}
-          style={{
-            background: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            marginTop: '1rem'
-          }}
-        >
-          Click Me
-        </button>
-      </div>
+    <Float speed={2} rotationIntensity={1} floatIntensity={1}>
+      <mesh ref={meshRef}>
+        <boxGeometry args={[2, 2, 2]} />
+        <meshStandardMaterial color="#3b82f6" roughness={0.2} metalness={0.8} />
+      </mesh>
+    </Float>
+  );
+}
+
+export default function Home() {
+  return (
+    <main style={{ width: '100vw', height: '100vh', background: '#090d16', margin: 0, overflow: 'hidden' }}>
+      <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+        {/* Ambient & directional lighting for the 3D scene */}
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[10, 10, 5]} intensity={1.5} />
+        
+        {/* The 3D element */}
+        <SpinningCube />
+
+        {/* Environment reflection and smooth mouse-driven camera controls */}
+        <Environment preset="city" />
+        <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={0.5} />
+      </Canvas>
     </main>
   );
 }
