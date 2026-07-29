@@ -125,16 +125,16 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
           if (isHalfWall) {
             hWalls.push({
               key: `hwall-${cx}-${cz}-${x}-${z}`,
-              position: [worldX, (WALL_HEIGHT * 0.5) / 2, worldZ],
-              rotation: [0, 0, 0, 1],
-              scale: [1, 1, 1]
+              position: [worldX, (WALL_HEIGHT * 0.5) / 2, worldZ] as [number, number, number],
+              rotation: [0, 0, 0, 1] as [number, number, number, number],
+              scale: [1, 1, 1] as [number, number, number]
             });
           } else {
             fWalls.push({
               key: `fwall-${cx}-${cz}-${x}-${z}`,
-              position: [worldX, WALL_HEIGHT / 2, worldZ],
-              rotation: [0, 0, 0, 1],
-              scale: [1, 1, 1]
+              position: [worldX, WALL_HEIGHT / 2, worldZ] as [number, number, number],
+              rotation: [0, 0, 0, 1] as [number, number, number, number],
+              scale: [1, 1, 1] as [number, number, number]
             });
           }
         }
@@ -152,9 +152,9 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
               (cx * CHUNK_SIZE) + (lx * TILE_SIZE),
               WALL_HEIGHT - 0.01,
               (cz * CHUNK_SIZE) + (lz * TILE_SIZE)
-            ],
-            rotation: [-Math.PI / 2, 0, 0],
-            scale: [1, 1, 1]
+            ] as [number, number, number],
+            rotation: [-Math.PI / 2, 0, 0] as [number, number, number],
+            scale: [1, 1, 1] as [number, number, number]
           });
         }
       }
@@ -168,7 +168,7 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
 
     if (fullWallMeshRef.current && fullWalls.length > 0) {
       fullWalls.forEach((inst: any, i: number) => {
-        dummy.position.set(...inst.position);
+        dummy.position.set(inst.position[0], inst.position[1], inst.position[2]);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         fullWallMeshRef.current.setMatrixAt(i, dummy.matrix);
@@ -178,7 +178,7 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
 
     if (halfWallMeshRef.current && halfWalls.length > 0) {
       halfWalls.forEach((inst: any, i: number) => {
-        dummy.position.set(...inst.position);
+        dummy.position.set(inst.position[0], inst.position[1], inst.position[2]);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         halfWallMeshRef.current.setMatrixAt(i, dummy.matrix);
@@ -188,7 +188,7 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
 
     if (lightMeshRef.current && lights.length > 0) {
       lights.forEach((inst: any, i: number) => {
-        dummy.position.set(...inst.position);
+        dummy.position.set(inst.position[0], inst.position[1], inst.position[2]);
         dummy.rotation.set(-Math.PI / 2, 0, 0);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
