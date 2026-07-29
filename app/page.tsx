@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useMemo, useRef, useLayoutEffect, useState } from 'react';
+import React, { useMemo, useRef, useLayoutEffect, useEffect, useState } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { PointerLockControls } from '@react-three/drei';
 import { Physics, RigidBody, InstancedRigidBodies, CapsuleCollider } from '@react-three/rapier';
@@ -63,6 +63,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; });
   window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
 }
+
+// Rotation offsets driven by touch lookaround
+const touchLook = { yaw: 0, pitch: 0 };
 
 // ============================================================================
 // 3. BACKROOMS LEVEL 0 CHUNK GENERATOR
@@ -228,15 +231,27 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
 }
 
 // ============================================================================
-// 4. PLAYER CONTROLLER
+// 4. PLAYER CONTROLLER WITH TOUCH LOOK & MOVE INTEGRATION
 // ============================================================================
 function PlayerController() {
   const playerRef = useRef<any>(null);
   const direction = new THREE.Vector3();
   const speed = 4.0;
+  const euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
   useFrame(({ camera }) => {
     if (!playerRef.current) return;
+
+    // Apply touch look rotation adjustments if active
+    euler.setFromQuaternion(camera.quaternion);
+    euler.y -= touchLook.yaw;
+    euler.x -= touchLook.pitch;
+    euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
+    camera.quaternion.setFromEuler(euler);
+
+    // Reset delta look values after applying
+    touchLook.yaw = 0;
+    touchLook.pitch = 0;
 
     const currentVel = playerRef.current.linvel();
     const moveZ = Number(keys.s) - Number(keys.w);
@@ -277,43 +292,59 @@ function PlayerController() {
 }
 
 // ============================================================================
-// 5. MOBILE VIRTUAL JOYSTICK COMPONENT
+// 5. MOBILE TOUCH CONTROLLER (JOYSTICK + SCREEN LOOK DRAG)
 // ============================================================================
-function MobileJoystick() {
+function MobileControls() {
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
-  const [active, setActive] = useState(false);
-  const touchIdRef = useRef<number | null>(null);
+  const [joystickActive, setJoystickActive] = useState(false);
+  const joystickTouchIdRef = useRef<number | null>(null);
+  const lookTouchIdRef = useRef<number | null>(null);
+  const lastLookPos = useRef({ x: 0, y: 0 });
   const baseRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (active) return;
-    const touch = e.changedTouches[0];
-    touchIdRef.current = touch.identifier;
-    setActive(true);
-    updateJoystick(touch.clientX, touch.clientY);
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      // Left half of screen triggers joystick, right half triggers camera look
+      if (touch.clientX < window.innerWidth / 2 && joystickTouchIdRef.current === null) {
+        joystickTouchIdRef.current = touch.identifier;
+        setJoystickActive(true);
+        updateJoystick(touch.clientX, touch.clientY);
+      } else if (touch.clientX >= window.innerWidth / 2 && lookTouchIdRef.current === null) {
+        lookTouchIdRef.current = touch.identifier;
+        lastLookPos.current = { x: touch.clientX, y: touch.clientY };
+      }
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!active) return;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
-      if (touch.identifier === touchIdRef.current) {
+      if (touch.identifier === joystickTouchIdRef.current) {
         updateJoystick(touch.clientX, touch.clientY);
+      } else if (touch.identifier === lookTouchIdRef.current) {
+        const dx = touch.clientX - lastLookPos.current.x;
+        const dy = touch.clientY - lastLookPos.current.y;
+        touchLook.yaw = dx * 0.005;
+        touchLook.pitch = dy * 0.005;
+        lastLookPos.current = { x: touch.clientX, y: touch.clientY };
       }
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!active) return;
     for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === touchIdRef.current) {
-        touchIdRef.current = null;
-        setActive(false);
+      const touch = e.changedTouches[i];
+      if (touch.identifier === joystickTouchIdRef.current) {
+        joystickTouchIdRef.current = null;
+        setJoystickActive(false);
         setTouchPos({ x: 0, y: 0 });
         keys.w = false;
         keys.s = false;
         keys.a = false;
         keys.d = false;
+      } else if (touch.identifier === lookTouchIdRef.current) {
+        lookTouchIdRef.current = null;
       }
     }
   };
@@ -336,7 +367,6 @@ function MobileJoystick() {
 
     setTouchPos({ x: dx, y: dy });
 
-    // Map joystick direction to WASD keys
     const threshold = 10;
     keys.w = dy < -threshold;
     keys.s = dy > threshold;
@@ -346,16 +376,21 @@ function MobileJoystick() {
 
   return (
     <div 
-      ref={baseRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="absolute bottom-8 left-8 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full z-20 flex items-center justify-center touch-none backdrop-blur-sm"
+      className="absolute inset-0 z-20 touch-none pointer-events-auto"
     >
+      {/* Visual representation of joystick container */}
       <div 
-        className="w-12 h-12 bg-white/60 rounded-full shadow-md pointer-events-none transition-transform duration-75"
-        style={{ transform: `translate(${touchPos.x}px, ${touchPos.y}px)` }}
-      />
+        ref={baseRef}
+        className="absolute bottom-8 left-8 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-none"
+      >
+        <div 
+          className="w-12 h-12 bg-white/60 rounded-full shadow-md transition-transform duration-75"
+          style={{ transform: `translate(${touchPos.x}px, ${touchPos.y}px)` }}
+        />
+      </div>
     </div>
   );
 }
@@ -381,8 +416,8 @@ export default function GamePrototype() {
       
       <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-zinc-800/40 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"></div>
 
-      {/* On-screen touch joystick for mobile viewports */}
-      <MobileJoystick />
+      {/* Responsive mobile controller layer (left joystick, right look-around drag) */}
+      <MobileControls />
 
       <Canvas>
         <color attach="background" args={['#c7bd7b']} />
