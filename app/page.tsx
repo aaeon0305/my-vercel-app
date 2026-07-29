@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useMemo, useRef, useLayoutEffect } from 'react';
+import React, { useMemo, useRef, useLayoutEffect, useState } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { PointerLockControls } from '@react-three/drei';
 import { Physics, RigidBody, InstancedRigidBodies, CapsuleCollider } from '@react-three/rapier';
@@ -65,7 +65,7 @@ if (typeof window !== 'undefined') {
 }
 
 // ============================================================================
-// 3. BACKROOMS LEVEL 0 CHUNK GENERATOR (OPTIMIZED INSTANCED BATCHES)
+// 3. BACKROOMS LEVEL 0 CHUNK GENERATOR
 // ============================================================================
 function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: string }) {
   const [cx, cz] = chunkID.split(',').map(Number);
@@ -90,7 +90,6 @@ function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: strin
       }
     }
 
-    // Cellular Automata smoothing
     for (let iteration = 0; iteration < 2; iteration++) {
       let newGrid = grid.map(arr => [...arr]);
       for (let x = 1; x < CHUNK_TILES - 1; x++) {
@@ -278,7 +277,91 @@ function PlayerController() {
 }
 
 // ============================================================================
-// 5. MAIN RENDER ENGINE
+// 5. MOBILE VIRTUAL JOYSTICK COMPONENT
+// ============================================================================
+function MobileJoystick() {
+  const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
+  const [active, setActive] = useState(false);
+  const touchIdRef = useRef<number | null>(null);
+  const baseRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (active) return;
+    const touch = e.changedTouches[0];
+    touchIdRef.current = touch.identifier;
+    setActive(true);
+    updateJoystick(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!active) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      if (touch.identifier === touchIdRef.current) {
+        updateJoystick(touch.clientX, touch.clientY);
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!active) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchIdRef.current) {
+        touchIdRef.current = null;
+        setActive(false);
+        setTouchPos({ x: 0, y: 0 });
+        keys.w = false;
+        keys.s = false;
+        keys.a = false;
+        keys.d = false;
+      }
+    }
+  };
+
+  const updateJoystick = (clientX: number, clientY: number) => {
+    if (!baseRef.current) return;
+    const rect = baseRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const maxRadius = 40;
+
+    if (distance > maxRadius) {
+      dx = (dx / distance) * maxRadius;
+      dy = (dy / distance) * maxRadius;
+    }
+
+    setTouchPos({ x: dx, y: dy });
+
+    // Map joystick direction to WASD keys
+    const threshold = 10;
+    keys.w = dy < -threshold;
+    keys.s = dy > threshold;
+    keys.a = dx < -threshold;
+    keys.d = dx > threshold;
+  };
+
+  return (
+    <div 
+      ref={baseRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className="absolute bottom-8 left-8 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full z-20 flex items-center justify-center touch-none backdrop-blur-sm"
+    >
+      <div 
+        className="w-12 h-12 bg-white/60 rounded-full shadow-md pointer-events-none transition-transform duration-75"
+        style={{ transform: `translate(${touchPos.x}px, ${touchPos.y}px)` }}
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// 6. MAIN RENDER ENGINE
 // ============================================================================
 export default function GamePrototype() {
   const activeChunks = useGameStore((state: any) => state.activeChunks);
@@ -297,6 +380,9 @@ export default function GamePrototype() {
       </div>
       
       <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-zinc-800/40 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"></div>
+
+      {/* On-screen touch joystick for mobile viewports */}
+      <MobileJoystick />
 
       <Canvas>
         <color attach="background" args={['#c7bd7b']} />
