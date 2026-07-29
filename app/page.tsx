@@ -16,7 +16,7 @@ const TILE_SIZE = 2;
 const WALL_HEIGHT = 4;          
 const CHUNK_SIZE = CHUNK_TILES * TILE_SIZE; 
 
-function hashString(str) {
+function hashString(str: string) {
   let h = 0;
   for (let i = 0; i < str.length; i++) {
     h = Math.imul(31, h) + str.charCodeAt(i) | 0;
@@ -24,7 +24,7 @@ function hashString(str) {
   return h;
 }
 
-function createSeededRandom(seedInt) {
+function createSeededRandom(seedInt: number) {
   return function() {
     seedInt |= 0; seedInt = seedInt + 0x9e3779b9 | 0;
     let t = seedInt ^ seedInt >>> 16; t = Math.imul(t, 0x21f0aaad);
@@ -36,7 +36,7 @@ function createSeededRandom(seedInt) {
 // ============================================================================
 // 2. GLOBAL STATE
 // ============================================================================
-const getNeighbors = (cx, cz) => {
+const getNeighbors = (cx: number, cz: number) => {
   const neighbors = [];
   for (let x = -1; x <= 1; x++) {
     for (let z = -1; z <= 1; z++) {
@@ -52,13 +52,13 @@ const useGameStore = create((set) => ({
   vitality: 40,
   currentChunk: [0, 0],
   activeChunks: getNeighbors(0, 0),
-  updateChunk: (newX, newZ) => set({ 
+  updateChunk: (newX: number, newZ: number) => set({ 
     currentChunk: [newX, newZ], 
     activeChunks: getNeighbors(newX, newZ) 
   })
 }));
 
-const keys = { w: false, a: false, s: false, d: false };
+const keys: { [key: string]: boolean } = { w: false, a: false, s: false, d: false };
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; });
   window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
@@ -67,11 +67,11 @@ if (typeof window !== 'undefined') {
 // ============================================================================
 // 3. BACKROOMS LEVEL 0 CHUNK GENERATOR (OPTIMIZED INSTANCED BATCHES)
 // ============================================================================
-function MazeChunk({ chunkID, seedString }) {
+function MazeChunk({ chunkID, seedString }: { chunkID: string; seedString: string }) {
   const [cx, cz] = chunkID.split(',').map(Number);
-  const fullWallMeshRef = useRef();
-  const halfWallMeshRef = useRef();
-  const lightMeshRef = useRef();
+  const fullWallMeshRef = useRef<any>(null);
+  const halfWallMeshRef = useRef<any>(null);
+  const lightMeshRef = useRef<any>(null);
   
   const { fullWalls, halfWalls, lights } = useMemo(() => {
     const localSeed = hashString(`${seedString}_${cx}_${cz}`);
@@ -108,9 +108,9 @@ function MazeChunk({ chunkID, seedString }) {
       grid = newGrid;
     }
 
-    const fWalls = [];
-    const hWalls = [];
-    const chunkLights = [];
+    const fWalls: any[] = [];
+    const hWalls: any[] = [];
+    const chunkLights: any[] = [];
 
     for (let x = 0; x < CHUNK_TILES; x++) {
       for (let z = 0; z < CHUNK_TILES; z++) {
@@ -167,7 +167,7 @@ function MazeChunk({ chunkID, seedString }) {
     const dummy = new THREE.Object3D();
 
     if (fullWallMeshRef.current && fullWalls.length > 0) {
-      fullWalls.forEach((inst, i) => {
+      fullWalls.forEach((inst: any, i: number) => {
         dummy.position.set(...inst.position);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
@@ -177,7 +177,7 @@ function MazeChunk({ chunkID, seedString }) {
     }
 
     if (halfWallMeshRef.current && halfWalls.length > 0) {
-      halfWalls.forEach((inst, i) => {
+      halfWalls.forEach((inst: any, i: number) => {
         dummy.position.set(...inst.position);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
@@ -187,7 +187,7 @@ function MazeChunk({ chunkID, seedString }) {
     }
 
     if (lightMeshRef.current && lights.length > 0) {
-      lights.forEach((inst, i) => {
+      lights.forEach((inst: any, i: number) => {
         dummy.position.set(...inst.position);
         dummy.rotation.set(-Math.PI / 2, 0, 0);
         dummy.scale.set(1, 1, 1);
@@ -202,7 +202,7 @@ function MazeChunk({ chunkID, seedString }) {
     <group>
       {fullWalls.length > 0 && (
         <InstancedRigidBodies instances={fullWalls} type="fixed" colliders="cuboid">
-          <instancedMesh ref={fullWallMeshRef} args={[null, null, fullWalls.length]}>
+          <instancedMesh ref={fullWallMeshRef} args={[undefined, undefined, fullWalls.length]}>
             <boxGeometry args={[TILE_SIZE, WALL_HEIGHT, TILE_SIZE]} />
             <meshStandardMaterial color="#dcd289" roughness={0.7} metalness={0.05} />
           </instancedMesh>
@@ -211,7 +211,7 @@ function MazeChunk({ chunkID, seedString }) {
 
       {halfWalls.length > 0 && (
         <InstancedRigidBodies instances={halfWalls} type="fixed" colliders="cuboid">
-          <instancedMesh ref={halfWallMeshRef} args={[null, null, halfWalls.length]}>
+          <instancedMesh ref={halfWallMeshRef} args={[undefined, undefined, halfWalls.length]}>
             <boxGeometry args={[TILE_SIZE, WALL_HEIGHT * 0.5, 0.3]} />
             <meshStandardMaterial color="#d4c980" roughness={0.7} metalness={0.05} />
           </instancedMesh>
@@ -219,7 +219,7 @@ function MazeChunk({ chunkID, seedString }) {
       )}
 
       {lights.length > 0 && (
-        <instancedMesh ref={lightMeshRef} args={[null, null, lights.length]}>
+        <instancedMesh ref={lightMeshRef} args={[undefined, undefined, lights.length]}>
           <planeGeometry args={[1.4, 0.6]} />
           <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
         </instancedMesh>
@@ -232,7 +232,7 @@ function MazeChunk({ chunkID, seedString }) {
 // 4. PLAYER CONTROLLER
 // ============================================================================
 function PlayerController() {
-  const playerRef = useRef();
+  const playerRef = useRef<any>(null);
   const direction = new THREE.Vector3();
   const speed = 4.0;
 
@@ -256,7 +256,7 @@ function PlayerController() {
     const playerChunkX = Math.floor(translation.x / CHUNK_SIZE);
     const playerChunkZ = Math.floor(translation.z / CHUNK_SIZE);
 
-    const store = useGameStore.getState();
+    const store: any = useGameStore.getState();
     if (playerChunkX !== store.currentChunk[0] || playerChunkZ !== store.currentChunk[1]) {
       store.updateChunk(playerChunkX, playerChunkZ);
     }
@@ -278,11 +278,11 @@ function PlayerController() {
 }
 
 // ============================================================================
-// 5. MAIN RENDER ENGINE (FOG REMOVED FOR CLEAR DISTANCE VIEW)
+// 5. MAIN RENDER ENGINE
 // ============================================================================
 export default function GamePrototype() {
-  const activeChunks = useGameStore(state => state.activeChunks);
-  const seed = useGameStore(state => state.seed);
+  const activeChunks = useGameStore((state: any) => state.activeChunks);
+  const seed = useGameStore((state: any) => state.seed);
 
   return (
     <div className="w-screen h-screen bg-[#c7bd7b] select-none overflow-hidden relative">
@@ -306,7 +306,7 @@ export default function GamePrototype() {
         
         <Physics debug={false}>
           <group>
-            {activeChunks.map((chunkID) => (
+            {activeChunks.map((chunkID: string) => (
               <MazeChunk key={`chunk-${chunkID}`} chunkID={chunkID} seedString={seed} />
             ))}
 
