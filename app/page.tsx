@@ -242,14 +242,12 @@ function PlayerController() {
   useFrame(({ camera }) => {
     if (!playerRef.current) return;
 
-    // Apply touch look rotation adjustments if active
     euler.setFromQuaternion(camera.quaternion);
     euler.y -= touchLook.yaw;
     euler.x -= touchLook.pitch;
     euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
     camera.quaternion.setFromEuler(euler);
 
-    // Reset delta look values after applying
     touchLook.yaw = 0;
     touchLook.pitch = 0;
 
@@ -292,7 +290,7 @@ function PlayerController() {
 }
 
 // ============================================================================
-// 5. MOBILE TOUCH CONTROLLER (JOYSTICK + SCREEN LOOK DRAG)
+// 5. MOBILE TOUCH CONTROLLER (JOYSTICK ADJUSTED UP)
 // ============================================================================
 function MobileControls() {
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
@@ -305,7 +303,6 @@ function MobileControls() {
   const handleTouchStart = (e: React.TouchEvent) => {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
-      // Left half of screen triggers joystick, right half triggers camera look
       if (touch.clientX < window.innerWidth / 2 && joystickTouchIdRef.current === null) {
         joystickTouchIdRef.current = touch.identifier;
         setJoystickActive(true);
@@ -381,10 +378,10 @@ function MobileControls() {
       onTouchEnd={handleTouchEnd}
       className="absolute inset-0 z-20 touch-none pointer-events-auto"
     >
-      {/* Visual representation of joystick container */}
+      {/* Moved joystick further up and away from bottom screen edges */}
       <div 
         ref={baseRef}
-        className="absolute bottom-8 left-8 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-none"
+        className="absolute bottom-14 left-10 w-28 h-28 bg-black/20 border-2 border-white/30 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-none"
       >
         <div 
           className="w-12 h-12 bg-white/60 rounded-full shadow-md transition-transform duration-75"
@@ -416,7 +413,6 @@ export default function GamePrototype() {
       
       <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-zinc-800/40 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"></div>
 
-      {/* Responsive mobile controller layer (left joystick, right look-around drag) */}
       <MobileControls />
 
       <Canvas>
